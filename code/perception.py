@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import ndimage
 import cv2
 
 # Identify pixels above the threshold
@@ -105,9 +106,6 @@ def perspect_transform(img, src, dst):
 
     return warped, mask
 
-
-    return warped
-
 debug = False
 display_interval = 10000
 
@@ -117,7 +115,7 @@ def rover_img_to_world(img, xpos, ypos, yaw, world_size, scale):
     # 5) Convert rover-centric pixel values to world coords
     world_x, world_y = pix_to_world(rover_centric_x, rover_centric_y, xpos, ypos, yaw, world_size, scale)
 
-    return world_x, world_y
+    return world_x, world_y, rover_centric_x, rover_centric_y
 
 # Apply the above functions in succession and update the Rover state accordingly
 def perception_step(Rover):
@@ -140,6 +138,13 @@ def perception_step(Rover):
     scale = dst_size * 2
     world_size = Rover.worldmap.shape[0]
 
+    # Save velocity history
+    Rover.vel_hist.append(Rover.vel)
+
+    # Average velocity
+    if Rover.vel_hist:
+        Rover.avg_vel = np.mean(Rover.vel_hist)
+
     # NOTE: camera image is coming to you in Rover.img
     img = Rover.img
 
@@ -155,8 +160,18 @@ def perception_step(Rover):
     # 3) Apply color threshold to identify navigable terrain/obstacles/rock samples
     terrain, rocks = extract_features(warped)
 
+    # Edge detection
+    # sx = ndimage.sobel(terrain, axis=1, mode='constant')
+    # sy = ndimage.sobel(terrain, axis=0, mode='constant')
+    # terrain_edges = np.hypot(sx, sy)
+
     # Mask removes the blank pixels that are unseen by the rover
     obstacles = np.absolute(np.float32(terrain) - 1) * mask
+
+    # Edge detection
+    # sx = ndimage.sobel(obstacles, axis=1, mode='constant')
+    # sy = ndimage.sobel(obstacles, axis=0, mode='constant')
+    # obstacles_edges = np.hypot(sx, sy)
 
     # 4) Update Rover.vision_image (this will be displayed on left side of screen)
         # Example: Rover.vision_image[:,:,0] = obstacle color-thresholded binary image
@@ -167,25 +182,39 @@ def perception_step(Rover):
 
     # 5) Convert map image pixel values to rover-centric coords
     # 6) Convert rover-centric pixel values to world coordinates
-    world_terrain_x, world_terrain_y = rover_img_to_world(terrain, xpos, ypos, yaw, world_size, scale)
+    world_terrain_x, world_terrain_y, rover_terrain_x, rover_terrain_y = rover_img_to_world(terrain, xpos, ypos, yaw, world_size, scale)
 
     # For obstacles you can just invert your color selection that you used to detect ground pixels,
     # i.e., if you've decided that everything above the threshold is navigable terrain, then
     # everthing below the threshold must be an obstacle!
-    world_obstacle_x, world_obstacle_y = rover_img_to_world(obstacles, xpos, ypos, yaw, world_size, scale)
+    world_obstacle_x, world_obstacle_y, rover_obstacle_x, rover_obstacle_y = rover_img_to_world(obstacles, xpos, ypos, yaw, world_size, scale)
 
     # 7) Update Rover worldmap (to be displayed on right side of screen)
         # Example: Rover.worldmap[obstacle_y_world, obstacle_x_world, 0] += 1
         #          Rover.worldmap[rock_y_world, rock_x_world, 1] += 1
         #          Rover.worldmap[navigable_y_world, navigable_x_world, 2] += 1
-    Rover.worldmap[world_obstacle_y, world_obstacle_x, 0] += 1
-    Rover.worldmap[world_terrain_y, world_terrain_x, 2] += 10
+    if (Rover.roll > 359.0 or Rover.roll < 1.0) and (Rover.pitch > 359.0 or Rover.pitch < 1.0):
+        Rover.worldmap[world_obstacle_y, world_obstacle_x, 0] += 1
+        Rover.worldmap[world_terrain_y, world_terrain_x, 2] += 10
     #navigable_pix = Rover.worldmap[:, :, 2] > 0
     #Rover.worldmap[navigable_pix, 0] = 0
 
     # 8) Convert rover-centric pixel positions to polar coordinates
     # Update Rover pixel distances and angles
-    dists, angles = to_polar_coords(world_terrain_x, world_terrain_y)
+    dists, angles = to_polar_coords(rover_terrain_x, rover_terrain_y)
+    obst_dists, obst_angles = to_polar_coords(rover_obstacle_x, rover_obstacle_y)
+    # Attempt at left wall edge detection
+    # obst_edge_dists, obst_edge_angles = to_polar_coords(rover_obstacles_edges_x, rover_obstacles_edges_y)
+    # if len(obst_edge_angles) >= 10:
+    #     theta_a = obst_edge_angles[5]
+    #     theta_b = 180 - theta_a
+    #     a = obst_edge_dists[5]
+    #     b = obst_edge_dists[10]
+    #     c = np.sqrt((a**2) + (b**2) - (2 * a * b * np.cos(theta_b - theta_a)))
+    #     theta_c = 1/np.cos(((c**2) + (a**2) - (b**2)) / (2 * c * a)) - theta_b
+    #     print("theta_a", theta_a, "theta_b", theta_b, "theta_c", theta_c, "a", a, "b", b, "c", c)
+    #
+    #     Rover.left_wall_angle = theta_c
     Rover.nav_dists = dists
     Rover.nav_angles = angles
 
@@ -196,14 +225,18 @@ def perception_step(Rover):
         # threshold range (keep in mind you may want different ranges for each of R, G and B!). Feel
         # free to get creative and even bring in functions from other libraries. Here's an example of
         # color selection using OpenCV.
-        world_rocks_x, world_rocks_y = rover_img_to_world(rocks, xpos, ypos, yaw, world_size, scale)
-        rock_dist, rock_angle = to_polar_coords(world_rocks_x, world_rocks_y)
-        rock_idx = np.argmin(rock_dist)
-        rock_xcenter = rock_x_world[rock_idx]
-        rock_ycenter = rock_y_world[rock_idx]
+        world_rocks_x, world_rocks_y, rover_rocks_x, rover_rocks_y = rover_img_to_world(rocks, xpos, ypos, yaw, world_size, scale)
+        rock_dists, rock_angles = to_polar_coords(rover_rocks_x, rover_rocks_y)
+        rock_idx = np.argmin(rock_dists)
+        rock_xcenter = world_rocks_x[rock_idx]
+        rock_ycenter = world_rocks_y[rock_idx]
+        Rover.rock_dists = rock_dists
+        Rover.rock_angles = rock_angles
         Rover.worldmap[rock_ycenter, rock_xcenter, 1] = 255
         Rover.vision_image[:,:,1] = rocks * 255
     else:
+        Rover.rock_dists = None
+        Rover.rock_angles = None
         Rover.vision_image[:,:,1] = 0
 
     return Rover

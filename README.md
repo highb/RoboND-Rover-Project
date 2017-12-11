@@ -4,7 +4,7 @@
 # Search and Sample Return Project
 
 
-![alt text][image_0] 
+![alt text][image_0]
 
 This project is modeled after the [NASA sample return challenge](https://www.nasa.gov/directorates/spacetech/centennial_challenges/sample_return_robot/index.html) and it will give you first hand experience with the three essential elements of robotics, which are perception, decision making and actuation.  You will carry out this project in a simulator environment built with the Unity game engine.  
 
@@ -14,7 +14,7 @@ The first step is to download the simulator build that's appropriate for your op
 You can test out the simulator by opening it up and choosing "Training Mode".  Use the mouse or keyboard to navigate around the environment and see how it looks.
 
 ## Dependencies
-You'll need Python 3 and Jupyter Notebooks installed to do this project.  The best way to get setup with these if you are not already is to use Anaconda following along with the [RoboND-Python-Starterkit](https://github.com/ryan-keenan/RoboND-Python-Starterkit). 
+You'll need Python 3 and Jupyter Notebooks installed to do this project.  The best way to get setup with these if you are not already is to use Anaconda following along with the [RoboND-Python-Starterkit](https://github.com/ryan-keenan/RoboND-Python-Starterkit).
 
 
 Here is a great link for learning more about [Anaconda and Jupyter Notebooks](https://classroom.udacity.com/courses/ud1111)
@@ -38,7 +38,7 @@ The last two cells in the notebook are for running the analysis on a folder of t
 ## Navigating Autonomously
 The file called `drive_rover.py` is what you will use to navigate the environment in autonomous mode.  This script calls functions from within `perception.py` and `decision.py`.  The functions defined in the IPython notebook are all included in`perception.py` and it's your job to fill in the function called `perception_step()` with the appropriate processing steps and update the rover map. `decision.py` includes another function called `decision_step()`, which includes an example of a conditional statement you could use to navigate autonomously.  Here you should implement other conditionals to make driving decisions based on the rover's state and the results of the `perception_step()` analysis.
 
-`drive_rover.py` should work as is if you have all the required Python packages installed. Call it at the command line like this: 
+`drive_rover.py` should work as is if you have all the required Python packages installed. Call it at the command line like this:
 
 ```sh
 python drive_rover.py
@@ -51,4 +51,19 @@ Then launch the simulator and choose "Autonomous Mode".  The rover should drive 
 ### Project Walkthrough
 If you're struggling to get started on this project, or just want some help getting your code up to the minimum standards for a passing submission, we've recorded a walkthrough of the basic implementation for you but **spoiler alert: this [Project Walkthrough Video](https://www.youtube.com/watch?v=oJA6QHDPdQw) contains a basic solution to the project!**.
 
+## Writeup
 
+### Obstacle and Rock Sample Identification
+
+In [perception.py:extract_features](code/perception.py), I setup a terrain and rock color threshold, and used it to filter the source visual data.
+
+### Image Processing/World Map
+
+In [perception.py](code/perception.py), I defined pix_to_world, rover_img_to_world and perspect_transform to transform the image data to the correct perspective.
+
+### Perception and Decisions
+
+In [decision.py](code/decision.py), I:
+* Added logic for detecting if the rover is stuck to attempt to back up out of where it got itself stuck.
+* Added a togglable option to pick up the samples, which I have disabled since it causes problems with properly mapping the environment.
+* Set the rover to turn towards the area with the most average terrain, with a slight left-hand bias so that it turns toward the left hand walls of the area.
