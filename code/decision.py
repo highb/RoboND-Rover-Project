@@ -28,7 +28,7 @@ def decision_step(Rover):
     # If the rover is stuck
     if rover_stuck(Rover):
         Rover.stuck_timer += 1
-        print("stuck for ", Rover.stuck_timer)
+        #print("stuck for ", Rover.stuck_timer)
     else:
         Rover.stuck_timer = 0
 
@@ -49,14 +49,14 @@ def decision_step(Rover):
         if np.mean(Rover.rock_dists) < 10:
             Rover.throttle = 0
             Rover.brake = Rover.brake_set
-            print("I break for rocks.")
+            #print("I break for rocks.")
         else:
             Rover.brake = 0
             if Rover.vel > 0.2:
                 Rover.throttle = -0.2
             else:
                 Rover.throttle = 0.1
-            print("A ROCK! JACKPOT")
+            #print("A ROCK! JACKPOT")
     # Check if we have nav vision data to make decisions with
     elif Rover.nav_angles is not None:
         mean_angle = np.mean(Rover.nav_angles * 180/np.pi)
@@ -83,7 +83,7 @@ def decision_step(Rover):
                 #print("forward steer: ", Rover.steer)
             # If there's a lack of navigable terrain pixels then go to 'stop' mode
             elif len(Rover.nav_angles) < Rover.stop_forward:
-                print("state changing to stop")
+                #print("state changing to stop")
                 # set mode to "stop" and hit the brakes!
                 Rover.throttle = 0
                 # set brake to stored brake value
@@ -121,9 +121,9 @@ def decision_step(Rover):
                     #print("from stop steer: ", Rover.steer)
                     Rover.mode = 'forward'
         elif Rover.mode == 'reverse':
-            print('in reverse')
+            #print('in reverse')
             if Rover.reverse_timer <= 50:
-                print('backing up')
+                #print('backing up')
                 Rover.brake = 0
                 if Rover.vel < -0.2:
                     Rover.throttle = 0.1
@@ -134,13 +134,5 @@ def decision_step(Rover):
             else:
                 Rover.reverse_timer = 0
                 Rover.mode = 'stop'
-
-    # Just to make the rover do something
-    # even if no modifications have been made to the code
-    else:
-        print("just do something!")
-        Rover.throttle = Rover.throttle_set
-        Rover.steer = 0
-        Rover.brake = 0
 
     return Rover
